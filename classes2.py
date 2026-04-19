@@ -4,30 +4,22 @@ import os
 from datetime import date
 import copy
 from datetime import datetime
-
 #______________________________________________________________________________________________
 
 BG         = "#0B0F1A"
 BG2        = "#12182A"
 BG3        = "#1A2240"
-
 ACCENT     = "#3A7BFF"
 ACCENT_H   = "#2F63D6"
-
 CYAN       = "#38BDF8"
 CYAN_H     = "#1EA7E1"
-
 TEXT       = "#E6ECFF"
 TEXT_DIM   = "#9AA6D1"
 TEXT_MUTE  = "#5B628A"
-
 SUCCESS    = "#4ADE80"
 SUCCESS_H  = "#36C96B"
-
 ERROR      = "#FF6B7A"
-
 BORDER     = "#2A3355"
-
 CARD_BG    = "#141B33"
 CARD_BORDER= "#2F3B70"
 
@@ -35,7 +27,6 @@ DATA_FILE = "budget_system_data.json"
 #______________________________________________________________________________________________
 
 #______________FILE HANDLING____________________________________
-
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -69,25 +60,27 @@ def expense_entry(parent, text_label):
                      relief="flat", bd=0, font=('Helvetica', 11))
     entry.pack(ipady=8, ipadx=12, fill="x")
     return entry
-
-#-----------------added---------------------------------
 #_____________________________________________________________
 
 DAYS_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
 #_____________________________________________________________
 
+#self = who am I
+#app = controller
+#parent = who i inherit
 class Page(tk.Frame):
     def __init__(self, parent, app):
         super().__init__(parent, bg=BG)
+        #refencer
         self.app = app
-        
+
     def on_show(self):
         pass
 
     def load(self): 
         pass
 
+#----------inside LetsGoBudget-----------
 class LandingPage(Page):
     def __init__(self, parent, app):
         super().__init__(parent, app)
@@ -98,7 +91,7 @@ class LandingPage(Page):
         tk.Label(w, text="Let's Go Budget!", font=('Helvetica', 22, 'bold'),
                  bg=BG, fg=TEXT).pack(pady=(0, 4))
         #might change this
-        tk.Label(w, text="Track every peso, every day.", font=('Helvetica', 11),
+        tk.Label(w, text="Budgeted Money For a Wiser Week.", font=('Helvetica', 11),
                  bg=BG, fg=TEXT_MUTE).pack(pady=(0, 28))
         
         tk.Button(w, text="Register",
@@ -122,7 +115,6 @@ class RegisterPage(Page):
 
         tk.Label(w, text="Create Account", font=('Helvetica', 20, 'bold'),
                  bg=BG, fg=TEXT).pack(pady=(0, 16))
-
         frame = tk.Frame(w, bg=CARD_BG, highlightbackground=CARD_BORDER,
                          highlightthickness=1)
         frame.pack(pady=4, padx=4)
@@ -150,17 +142,17 @@ class RegisterPage(Page):
     def _register(self):
         u, p, p2 = self.username.get(), self.password.get(), self.password2.get()
         if not u or not p:
-            self.msg.set("no entry"); return
+            self.msg.set("Please enter username or password."); return
         if p != p2:
-            self.msg.set("password doesnt match")
+            self.msg.set("Password does not match.")
             self.delete_input()
             return
         if len(p) <= 3:
-            self.msg.set("password too short should be more than 3 characters")
+            self.msg.set("Password too short should be more than 3 characters.")
             self.delete_input()
             return
         if u in self.app.data:
-            self.msg.set("already taken") 
+            self.msg.set("Username already exists.") 
             self.delete_input()
             return
 
@@ -214,7 +206,7 @@ class LoginPage(Page):
                   bg=BG, fg=TEXT_MUTE, activebackground=BG, activeforeground=CYAN,
                   font=('Helvetica', 10), relief="flat", bd=0,
                   cursor="hand2",
-                  command=lambda: app.show_page("register")).pack()
+                  command=lambda: self.app.show_page("register")).pack()
     
     def _login(self):
         u, p = self.username.get(), self.password.get()
@@ -222,38 +214,113 @@ class LoginPage(Page):
             self.msg.set("no entry"); return
         if u not in self.app.data:
             self.msg.set("incorrect username")
-            self.delete_input()
+            self.password.delete(0, tk.END)
             return
         if p != self.app.data[u]["password"]:
             self.msg.set("incorrect password") 
-            self.delete_input()
+            self.password.delete(0, tk.END)
             return
 
         self.app.current_user = u
-        self.app.show_page("main")
-    
-    def delete_input(self):
-        self.password.delete(0, tk.END)
+        self.app.show_page("main")   
 
+class MainPage(Page):
+    def __init__(self, parent, app):
+        self.PAGES = [
+            ("Dashboard", DashBoard),
+            ("Days", DaysTab),
+            ("Expenses Tab", ExpensesTab),
+            ("Summary", SummaryTab),
+            ("Saved Plans", SavedPlansTab)
+        ]
+
+        super().__init__(parent, app)
+        self._side_panel()
+        self.show_tab(0)
+
+    #side part/nav in main after logging in
+    def _side_panel(self):
+        sidebar = tk.Frame(self, width=200, bg=BG2)
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+
+        tk.Label(sidebar, text="LET'S GO BUDGET", font=('Helvetica', 9, 'bold'),
+                bg=BG2, fg=TEXT_MUTE).pack(anchor="w", padx=16, pady=(20, 4))
+        tk.Frame(sidebar, bg=BORDER, height=1).pack(fill="x", padx=16, pady=(0, 8))
+
+        self.nav_buttons = []
+        nav_frame = tk.Frame(sidebar, bg=BG2)
+        nav_frame.pack(fill="x")
+
+        self.content = tk.Frame(self, bg=BG)
+        self.content.pack(side="left", fill="both", expand=True)
+
+        self.tabs = []
+        #frame for content each page
+        for _, PageClass in self.PAGES:
+            #self.content will be their parent
+            frame = PageClass(self.content, self.app)
+            frame.place(relwidth=1, relheight=1)
+            self.tabs.append(frame)
+
+        self.budget_overlay = Budget(self.content, self.app)
+        self.budget_overlay.place(relwidth=1, relheight=1)
+
+        #for navigation buttons
+        for i, (label, _) in enumerate(self.PAGES):
+            btn = tk.Button(
+                nav_frame, 
+                text=f"  {label}", 
+                relief="flat", 
+                anchor="w",
+                cursor="hand2", 
+                pady=11, 
+                padx=16, 
+                bd=0, 
+                font=('Helvetica', 11),
+                bg=BG2, 
+                fg=TEXT_DIM, 
+                activebackground=BG3, 
+                activeforeground=TEXT,
+                command=lambda idx=i: self.show_tab(idx)
+            )
+            btn.pack(fill="x")
+            self.nav_buttons.append(btn)
+
+    def on_show(self):
+        if not self.app.current_user:
+            return
+        budget = self.app.data[self.app.current_user]["weekly_budget"]
+        if budget == 0:
+            self.budget_overlay.tkraise()
+        else:
+            self.budget_overlay.lower()
+
+    def show_tab(self, idx):
+        self.tabs[idx].tkraise()
+        self.tabs[idx].load()
+        self.on_show()
+        for i, btn in enumerate(self.nav_buttons):
+            if i == idx:
+                btn.config(bg=BG3, fg=TEXT)
+            else:
+                btn.config(bg=BG2, fg=TEXT_DIM)
+
+#---------inside MainPage------------------
 class DashBoard(Page):
     def __init__(self, parent, app):
         super().__init__(parent, app)
 
         scrollbar = tk.Scrollbar(self, orient="vertical")
         scrollbar.pack(side="right", fill="y")
-
         self.canvas = tk.Canvas(self, bg=BG, highlightthickness=0,
                                 yscrollcommand=scrollbar.set)
         self.canvas.pack(side="left", fill="both", expand=True)
-
         scrollbar.config(command=self.canvas.yview)
-
         self.inner = tk.Frame(self.canvas, bg=BG)
         self.win_id = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
-
         self.inner.bind("<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-
         self.canvas.bind("<Configure>",
             lambda e: self.canvas.itemconfig(self.win_id, width=e.width))
 
@@ -268,23 +335,19 @@ class DashBoard(Page):
         # ── Header ──────────────────────────────────────────────
         header = tk.Frame(self.inner, bg=BG)
         header.pack(fill="x", padx=24, pady=(20, 4))
-
         tk.Label(header, text=f"Hey, {self.app.current_user}!",
                  font=('Helvetica', 18, 'bold'), bg=BG, fg=TEXT).pack(anchor="w")
         tk.Label(header, text=today,
                  font=('Helvetica', 10), bg=BG, fg=TEXT_MUTE).pack(anchor="w", pady=(2, 0))
-
         tk.Frame(self.inner, bg=BORDER, height=1).pack(fill="x", padx=24, pady=(12, 0))
 
         # ── Weekly Budget ────────────────────────────────────────
         budget_card = tk.Frame(self.inner, bg=CARD_BG, highlightbackground=CARD_BORDER, highlightthickness=1)
         budget_card.pack(fill="x", padx=24, pady=(16, 0))
-
         tk.Label(budget_card, text="WEEKLY BUDGET",
                  font=('Helvetica', 8, 'bold'), bg=CARD_BG, fg=TEXT_MUTE).pack(anchor="w", padx=16, pady=(12, 0))
         tk.Label(budget_card, text=f"₱{data['weekly_budget']:,.2f}",
                  font=('Helvetica', 22, 'bold'), bg=CARD_BG, fg=SUCCESS).pack(anchor="w", padx=16, pady=(2, 0))
-
         tk.Button(budget_card, text="Reset Weekly Budget",
                   bg=BG, fg=ERROR, activebackground=BG2, activeforeground=ERROR,
                   font=('Helvetica', 9, 'bold'), relief="flat", bd=0,
@@ -294,7 +357,6 @@ class DashBoard(Page):
         # ── Days Included ────────────────────────────────────────
         tk.Label(self.inner, text="DAYS INCLUDED",
                  font=('Helvetica', 8, 'bold'), bg=BG, fg=TEXT_MUTE).pack(anchor="w", padx=24, pady=(20, 6))
-
         days_frame = tk.Frame(self.inner, bg=BG)
         days_frame.pack(fill="x", padx=24)
 
@@ -395,35 +457,60 @@ class DaysTab(Page):
 
         bottom = tk.Frame(w, bg=BG)
         bottom.pack(fill="both", expand=True, pady=(15, 0))
+        bottom.pack_propagate(False)
 
+        save_btn = tk.Button(bottom, bg=ACCENT, text="Remove all days", 
+                             relief="flat", font=('Helvetica', 12, 'bold'), 
+                             bd=0, fg=TEXT, cursor="hand2",
+                             command=self._remove_days)
+        save_btn.pack(padx=10, pady=8, anchor="center", expand=True)
 
     def load(self):
-        data = self.app.data[self.app.current_user]["current"]["days_included"]
+        self.data_days = self.app.data[self.app.current_user]["current"]["days_included"]
         for day, var in self.day_vars.items():
-            var.set(day in data)
+            var.set(day in self.data_days)
 
     def _toggle_day(self, day, var):
-        data = self.app.data[self.app.current_user]["current"]["days_included"]
         if var.get():
-            if day not in data:
-                data.append(day)
+            if day not in self.data_days:
+                self.data_days.append(day)
         else:
-            if day in data:
-                data.remove(day)
+            if day in self.data_days:
+                self.data_days.remove(day)
 
-        data.sort(key=lambda d: DAYS_ORDER.index(d))
+        self.data_days.sort(key=lambda d: DAYS_ORDER.index(d))
 
         #---------added------------------
         expenses = self.app.data[self.app.current_user]["current"]["expenses"]
-        days = self.app.data[self.app.current_user]["current"]["days_included"]
+        days = self.data_days
         one_time_total = sum(e["Amount"] for e in expenses["one_time"].values())
         remaining = self.app.data[self.app.current_user]["weekly_budget"] - one_time_total
 
         for expense_data in expenses["daily"].values():
             p = expense_data["Percentage"]
             new_total = remaining * (p / 100)
-            expense_data["Total Budget"] = new_total
-            expense_data["Daily Budget"] = new_total / len(days) if days else 0
+            expense_data["Total Budget"] = round(new_total, 2)
+            expense_data["Daily Budget"] = round(new_total / len(days), 2) if days else 0
+
+        save_data(self.app.data)
+
+    def _remove_days(self):
+        self.data_days.clear()
+
+        # Uncheck all checkboxes
+        for var in self.day_vars.values():
+            var.set(False)
+
+        # Recalculate budgets with no days
+        expenses = self.app.data[self.app.current_user]["current"]["expenses"]
+        one_time_total = sum(e["Amount"] for e in expenses["one_time"].values())
+        remaining = self.app.data[self.app.current_user]["weekly_budget"] - one_time_total
+
+        for expense_data in expenses["daily"].values():
+            p = expense_data["Percentage"]
+            new_total = remaining * (p / 100)
+            expense_data["Total Budget"] = round(new_total, 2)
+            expense_data["Daily Budget"] = 0  # no days, so 0
 
         save_data(self.app.data)
 
@@ -453,26 +540,28 @@ class ExpensesTab(Page):
 
         daily_btn = tk.Button(btn_group, text="Daily Expenses",
                               fg=TEXT_DIM, bg=BG3, relief="flat", bd=0,
-                              command=lambda: self._daily_frame.tkraise())  # <-- raise the frame
+                              command=lambda: self._daily_frame.tkraise())
         daily_btn.pack(side="left", fill="both", expand=True,
                        padx=4, pady=(4, 0))
 
         one_time_btn = tk.Button(btn_group, text="One Time Expenses",
                                  fg=TEXT_DIM, bg=BG3, relief="flat", bd=0,
-                                 command=lambda: self._one_time_frame.tkraise())  # <-- raise the frame
+                                 command=lambda: self._one_time_frame.tkraise())
         one_time_btn.pack(side="left", fill="both", expand=True,
                           padx=4, pady=(4, 0))
 
         self.panel = tk.Frame(self.w, bg=BG2)
         self.panel.pack(fill="both", expand=True)
 
-        # Build both frames inside the same panel and stack them
         self._daily_frame = self._build_daily()
         self._one_time_frame = self._build_one_time()
+
         self._recalculate()
+
         # Show daily by default
         self._daily_frame.tkraise()
     
+    #builds the frame for adding daily expenses
     def _build_daily(self):
         frame = tk.Frame(self.panel, bg=BG3)
         frame.place(relwidth=1, relheight=1)
@@ -500,6 +589,7 @@ class ExpensesTab(Page):
 
         return frame
 
+    #builds the frame for adding one time expenses
     def _build_one_time(self):
         frame = tk.Frame(self.panel, bg=BG3)
         frame.place(relwidth=1, relheight=1)
@@ -528,8 +618,10 @@ class ExpensesTab(Page):
 
         return frame
     
-    #newly added
+    #like the summary of expenses shown at the right side
     def _refresh_sidebar(self):
+        #destroys everything inside all_expenses to make a new one
+        #all_expenses = summary of expenses
         for widget in self.all_expenses.winfo_children():
             widget.destroy()
 
@@ -542,6 +634,7 @@ class ExpensesTab(Page):
         tk.Label(self.all_expenses, text="DAILY", font=('Helvetica', 8, 'bold'),
                 bg=BG2, fg=TEXT_MUTE).pack(anchor="w", padx=12, pady=(4, 4))
 
+        #prints all daily with percent
         for name, data in self.data["current"]["expenses"]["daily"].items():
             row = tk.Frame(self.all_expenses, bg=BG3)
             row.pack(fill="x", padx=8, pady=2)
@@ -562,6 +655,7 @@ class ExpensesTab(Page):
         tk.Label(self.all_expenses, text="ONE TIME", font=('Helvetica', 8, 'bold'),
                 bg=BG2, fg=TEXT_MUTE).pack(anchor="w", padx=12, pady=(0, 4))
 
+        #prints all one time with amount and which day
         for name, data in self.data["current"]["expenses"]["one_time"].items():
             row = tk.Frame(self.all_expenses, bg=BG3)
             row.pack(fill="x", padx=8, pady=2)
@@ -577,8 +671,8 @@ class ExpensesTab(Page):
                     relief="flat", bd=0, cursor="hand2", font=('Helvetica', 10, 'bold'),
                   command=lambda n=name: self._remove_expense("one_time", n)).pack(side="right", padx=6)
 
+    #adds daily to data
     def _add_daily(self):
-        
         n = self.daily_name.get()
         
         if not n:
@@ -588,6 +682,7 @@ class ExpensesTab(Page):
             self.daily_msg.set("Expense already exists")
             return
         
+        #repeats until a float is entered
         try:
             p = float(self.percentage.get())
         except ValueError:
@@ -601,18 +696,18 @@ class ExpensesTab(Page):
             self.daily_msg.set(f"Only {100 - self.percent_total}% available")
             return
 
-        total = self.remaining * (p / 100)
-        days = self.data["current"]["days_included"]
+        self.daily_msg.set("")
 
         self.data["current"]["expenses"]["daily"][n] = {
             "Percentage": round(p, 2),
-            "Total Budget": round(total, 2),
-            "Daily Budget": round(total / len(days), 2)
+            "Total Budget": 0,
+            "Daily Budget": 0
         }
 
         self._remove_input("daily")
         self._recalculate()
 
+    #adds one time to data
     def _add_one_time(self):
         n = self.one_time_name.get()
         if not n:
@@ -631,8 +726,8 @@ class ExpensesTab(Page):
         if amount <= 0:
             self.one_msg.set("Amount must be greater than 0")
             return
-        if amount > self.budget_remaining:
-            self.one_msg.set(f"Only {budget_remaining} Php available")
+        if amount > self.remaining:
+            self.one_msg.set(f"Only {self.budget_remaining:.2f} Php available")
             return
 
         s_day = self.specified_day.get()
@@ -644,25 +739,20 @@ class ExpensesTab(Page):
             self.one_msg.set("Not a valid day to pay")
             return
         
-        percentage_equivalence = (amount / self.data["weekly_budget"]) * 100
+        self.one_msg.set("")
 
+        #without round data saves data with long version
+        percentage_equivalence = (amount / self.data["weekly_budget"]) * 100
         self.data["current"]["expenses"]["one_time"][n] = {
                                                     "Amount": round(amount, 2),
                                                     "Day": s_day,
                                                     "Percentage Equivalence": round(percentage_equivalence, 2)
                                                       }
 
-        days = self.data["current"]["days_included"]
-        for expense_data in self.data["current"]["expenses"]["daily"].values():
-            p = expense_data["Percentage"]
-            new_total = self.remaining * (p / 100)
-            expense_data["Total Budget"] = new_total
-            expense_data["Daily Budget"] = new_total / len(days)
-                
         self._remove_input("one")
         self._recalculate()
-    
-    #newly added
+
+    #for removing 1 of expenses
     def _remove_expense(self, type, name):
         if type == "daily":
             del self.data["current"]["expenses"]["daily"][name]
@@ -671,37 +761,48 @@ class ExpensesTab(Page):
         self._recalculate()
         self._refresh_sidebar()
 
-    #newly added
+    #removes everything
     def _remove_all(self):
         self.data["current"]["expenses"]["daily"].clear()
         self.data["current"]["expenses"]["one_time"].clear()
         self._recalculate()
         self._refresh_sidebar()
 
+    #recalculate everything
     def _recalculate(self):
+        #WEEKLY_BUDGET -> ONE TIME -> THEN PERCENTAGE OF WHAT REMAINS FOR DAILY
         days = self.data["current"]["days_included"]
-        self.percent_total = (
-                            sum(e["Percentage"] for e in self.data["current"]["expenses"]["daily"].values()) +
-                            sum(e["Percentage Equivalence"] for e in self.data["current"]["expenses"]["one_time"].values())
-                        )
-        self.daily_total = sum(e["Total Budget"] for e in self.data["current"]["expenses"]["daily"].values())
-        self.one_time_total = sum(e["Amount"] for e in self.data["current"]["expenses"]["one_time"].values())
-        self.remaining = self.data["weekly_budget"] - self.one_time_total
-        self.percent_remaining = 100 - self.percent_total
-        self.budget_remaining = self.remaining * ((100 - self.percent_total) / 100)
 
-        for expense_data in self.data["current"]["expenses"]["daily"].values():
+        daily_expenses   = self.data["current"]["expenses"]["daily"]
+        one_time_expenses = self.data["current"]["expenses"]["one_time"]
+
+        #sum of percent
+        self.daily_percent_total = sum(e["Percentage"] for e in daily_expenses.values())
+        #sum of amounts
+        self.one_time_total      = sum(e["Amount"] for e in one_time_expenses.values())
+
+        self.percent_total    = self.daily_percent_total
+        self.remaining        = self.data["weekly_budget"] - self.one_time_total #<-- subtracts one time first to initial weekly budget
+        self.percent_remaining = 100 - self.percent_total #<-- percentage of remaining budget that can be allocated
+        self.budget_remaining  = self.remaining * (self.percent_remaining / 100) #<-- calculates what remains in the budget
+
+        for expense_data in daily_expenses.values():
             p = expense_data["Percentage"]
             new_total = self.remaining * (p / 100)
-            expense_data["Total Budget"] = new_total
-            expense_data["Daily Budget"] = new_total / len(days) if days else 0
-        
-        self.avail_percent_label.config(text=f"PERCENTAGE OF BUDGET AVAILABLE: {self.percent_remaining}% ({self.budget_remaining:.2f} Php)")
-        self.avail_amount_label.config(text=f"AVAILABLE AMOUNT: {self.budget_remaining:.2f} Php")
+            expense_data["Total Budget"] = round(new_total, 2)
+            expense_data["Daily Budget"] = round(new_total / len(days), 2) if days else 0
+
+        self.avail_percent_label.config(
+            text=f"PERCENTAGE OF BUDGET AVAILABLE: {self.percent_remaining:.2f}%)"
+        )
+        self.avail_amount_label.config(
+            text=f"AVAILABLE AMOUNT: ₱{self.budget_remaining:.2f}"
+        )
 
         save_data(self.app.data)
         self._refresh_sidebar()
-    
+
+    #removes input 
     def _remove_input(self, type):
         if type == "daily":
             self.daily_name.delete(0, tk.END)
@@ -724,6 +825,7 @@ class SummaryTab(Page):
         w = tk.Frame(self, bg=BG)
         w.pack(fill="both", expand=True)
 
+        #makes whole content area a canvas
         self.canvas = tk.Canvas(w, bg=BG2, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
@@ -735,6 +837,7 @@ class SummaryTab(Page):
         self.canvas.bind("<Configure>",
             lambda e: self.canvas.itemconfig(self.canvas_window, height=e.height))
 
+        #for scroll bar 
         scrollbar = tk.Scrollbar(w, orient="horizontal", command=self.canvas.xview)
         scrollbar.pack(fill="x")
         self.canvas.configure(xscrollcommand=scrollbar.set)
@@ -751,6 +854,7 @@ class SummaryTab(Page):
 
         self.cards = []  # track cards here
 
+    #loads everything
     def load(self):
         for card in self.cards:
             card.destroy()
@@ -765,7 +869,7 @@ class SummaryTab(Page):
             card = self._day_card(day, daily, one_time, days)
             self.cards.append(card)
 
-
+    #responsible for making the summary day cards
     def _day_card(self, day, daily, one_time, days):
         card = tk.Frame(self.upper, bg=CARD_BG, highlightbackground=CARD_BORDER,
                         highlightthickness=1, width=210)
@@ -773,13 +877,13 @@ class SummaryTab(Page):
         card.pack_propagate(False)
 
         tk.Label(card, text=day, font=('Helvetica', 10, 'bold'),
-                 bg=BG, fg=TEXT, anchor="center" ).pack(fill="x", pady=12, padx=8, ipadx=5, ipady=8)
-
-        
+                 bg=BG, fg=TEXT, anchor="center", highlightthickness=2, highlightbackground=CARD_BORDER ).pack(fill="x", pady=12, padx=8, ipadx=5, ipady=8)
 
         tk.Label(card, text="DAILY", font=('Helvetica', 10, 'bold'),
                  bg=CARD_BG, fg=TEXT_DIM).pack(anchor="w", padx=10, pady=(8, 0))
         tk.Frame(card, bg=BORDER, height=1).pack(fill="x", padx=8)
+
+        #day already traverse in def load
         if day in days:
             for name, e in daily.items():
                 tk.Label(card, text=name, font=('Helvetica', 9, 'bold'),
@@ -800,6 +904,7 @@ class SummaryTab(Page):
 
         return card
 
+    #when saving a budget plan
     def _save_plan(self):
         data = self.app.data[self.app.current_user]
         today = str(date.today())  # e.g. "2026-04-18"
@@ -807,10 +912,12 @@ class SummaryTab(Page):
         if "saved_plans" not in self.app.data[self.app.current_user]:
             self.app.data[self.app.current_user]["saved_plans"] = {}
 
-        key = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        key = datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
+        #%Y=Year -%m=month in number -%d=day %H=Hour :%M=Minutes :%S=Seconds
 
-        self.app.data[self.app.current_user]["saved_plans"][today] = {
+        self.app.data[self.app.current_user]["saved_plans"][key] = {
             "weekly_budget": data["weekly_budget"],
+            #copies the whole expense data without the need of another variable
             "expenses": copy.deepcopy(data["current"]["expenses"])
         }
 
@@ -836,16 +943,16 @@ class SavedPlansTab(Page):
         self.canvas.bind("<Configure>",
             lambda e: self.canvas.itemconfig(self.win_id, width=e.width))
 
-        self.canvas.bind_all("<MouseWheel>",
-            lambda e: self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
-
+    #loads the datas
     def load(self):
+        #again destroys everything inside inner to redo it
         for w in self.inner.winfo_children():
             w.destroy()
 
         user_data = self.app.data[self.app.current_user]
-        saved = user_data.get("saved_plans", {})
+        saved = user_data.get("saved_plans", {}) #<-- gets the savedplans dictionary
 
+        #frames per saved file
         header = tk.Frame(self.inner, bg=BG)
         header.pack(fill="x", padx=24, pady=(20, 4))
 
@@ -856,13 +963,14 @@ class SavedPlansTab(Page):
 
         tk.Frame(self.inner, bg=BORDER, height=1).pack(fill="x", padx=24, pady=(12, 0))
 
-        if not saved:
+        if not saved: #<-- meaning empty
             tk.Label(self.inner,
                      text="No saved plans yet. Go to Summary and hit 'Save Budget Plan'.",
                      font=('Helvetica', 10), bg=BG, fg=TEXT_MUTE,
                      wraplength=500, justify="left").pack(anchor="w", padx=24, pady=20)
             return
 
+        #traverse in reverse
         for plan_date in sorted(saved.keys(), reverse=True):
             self._build_plan_card(plan_date, saved[plan_date])
 
@@ -880,17 +988,19 @@ class SavedPlansTab(Page):
                               highlightbackground=CARD_BORDER, highlightthickness=1)
         header_bar.pack(fill="x")
 
+        #it is automatically opened
         toggle_var = tk.BooleanVar(value=True)
 
         left = tk.Frame(header_bar, bg=CARD_BG)
         left.pack(side="left", fill="both", expand=True, padx=14, pady=12)
 
         try:
-            if " " in plan_date:
-                nice_date = datetime.strptime(plan_date, "%Y-%m-%d %H:%M:%S").strftime("%B %d, %Y  %I:%M %p")
+            if " " in plan_date: #<-- checks if theres space in data          
+                nice_date = datetime.strptime(plan_date, "%Y-%m-%d %H:%M:%S").strftime("%B %d, %Y  %I:%M %p") #B for month, I for 12 hour
             else:
                 nice_date = datetime.strptime(plan_date, "%Y-%m-%d").strftime("%B %d, %Y")
         except Exception:
+            #just shows the original if fail
             nice_date = plan_date
 
         arrow_lbl = tk.Label(left, text="▾", font=('Helvetica', 12),
@@ -988,7 +1098,7 @@ class SavedPlansTab(Page):
             save_data(self.app.data)
         wrapper.destroy()
         self.load()
-
+#ok na budget
 class Budget(Page):
     def __init__(self, parent, app):
         super().__init__(parent, app)
@@ -1002,6 +1112,10 @@ class Budget(Page):
         self.budget_entry = tk.Entry(w, bg=CARD_BG, fg=TEXT, width=30, font=('Helvetica', 16, 'bold'), justify="center", relief="flat")
         self.budget_entry.pack(pady=10)
 
+        self.msg = tk.StringVar()
+        error = tk.Label(w, textvariable=self.msg, bg=BG, fg=ERROR)
+        error.pack(pady=10)
+
         btn = tk.Button(w, text="ENTER", bg=ACCENT, fg=TEXT, 
                         activebackground=ACCENT_H, activeforeground=TEXT,
                         font=('Helvetica', 11, 'bold'), relief="flat", bd=0,
@@ -1012,102 +1126,27 @@ class Budget(Page):
     def _fill_budget(self):
         b = self.budget_entry.get()
         if not b:
-            print("no input")
+            self.msg.set("Please enter your weekly budget")
             return
-        if not b.isdigit() or int(b) <= 0:
-            print("invalid")
+        if not b.isdigit() or float(b) <= 0:
+            self.msg.set("Please number or proper budget amount")
             return
         
-        self.app.data[self.app.current_user]["weekly_budget"] = int(b)
+        self.msg.set("")
+        self.budget_entry.delete(0, tk.END)
+
+        self.app.data[self.app.current_user]["weekly_budget"] = round(float(b), 2)
         save_data(self.app.data)
         self.lower()
 
         main = self.app.pages.get("main")
         if main:
-            expenses_tab = main.tabs[2]  # index 2 is ExpensesTab
+            expenses_tab = main.tabs[2]  
             expenses_tab.data = self.app.data[self.app.current_user]
             expenses_tab._recalculate()
             main.tabs[0].load()
 
-class MainPage(Page):
-    def __init__(self, parent, app):
-        self.PAGES = [
-            ("Dashboard", DashBoard),
-            ("Days", DaysTab),
-            ("Expenses Tab", ExpensesTab),
-            ("Summary", SummaryTab),
-            ("Saved Plans", SavedPlansTab)
-        ]
-
-        super().__init__(parent, app)
-        self._side_panel()
-        self.show_tab(0)
-
-    def _side_panel(self):
-        sidebar = tk.Frame(self, width=200, bg=BG2)
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
-
-        tk.Label(sidebar, text="LET'S GO BUDGET", font=('Helvetica', 9, 'bold'),
-                bg=BG2, fg=TEXT_MUTE).pack(anchor="w", padx=16, pady=(20, 4))
-        tk.Frame(sidebar, bg=BORDER, height=1).pack(fill="x", padx=16, pady=(0, 8))
-
-        self.nav_buttons = []
-        nav_frame = tk.Frame(sidebar, bg=BG2)
-        nav_frame.pack(fill="x")
-
-        self.content = tk.Frame(self, bg=BG)
-        self.content.pack(side="left", fill="both", expand=True)
-
-        self.tabs = []
-        for label, PageClass in self.PAGES:
-            frame = PageClass(self.content, self.app)
-            frame.place(relwidth=1, relheight=1)
-            self.tabs.append(frame)
-
-        # overlay on top of all tabs
-        self.budget_overlay = Budget(self.content, self.app)
-        self.budget_overlay.place(relwidth=1, relheight=1)
-
-        for i, (label, _) in enumerate(self.PAGES):
-            btn = tk.Button(
-                nav_frame, 
-                text=f"  {label}", 
-                relief="flat", 
-                anchor="w",
-                cursor="hand2", 
-                pady=11, 
-                padx=16, 
-                bd=0, 
-                font=('Helvetica', 11),
-                bg=BG2, 
-                fg=TEXT_DIM, 
-                activebackground=BG3, 
-                activeforeground=TEXT,
-                command=lambda idx=i: self.show_tab(idx)
-            )
-            btn.pack(fill="x")
-            self.nav_buttons.append(btn)
-
-    def on_show(self):
-        if not self.app.current_user:
-            return
-        budget = self.app.data[self.app.current_user]["weekly_budget"]
-        if budget == 0:
-            self.budget_overlay.tkraise()
-        else:
-            self.budget_overlay.lower()
-
-    def show_tab(self, idx):
-        self.tabs[idx].tkraise()
-        self.tabs[idx].load()
-        self.on_show()
-        for i, btn in enumerate(self.nav_buttons):
-            if i == idx:
-                btn.config(bg=BG3, fg=TEXT)
-            else:
-                btn.config(bg=BG2, fg=TEXT_DIM)
-
+#------------main class------------
 class LetsGoBudget(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -1143,4 +1182,3 @@ class LetsGoBudget(tk.Tk):
 
 if __name__ == "__main__":
     LetsGoBudget().mainloop()
-    #test
